@@ -28,10 +28,22 @@ struct SquareTestType
   double x1, x2;
 };
 
+/***
+ * Functions prototypes
+ ***/
 enum RootsNumber SolveSquare( double a, double b, double c, double* x1, double* x2 );
+
 void SquareTester( void );
+
 enum RootsNumber SolveLinear( double a, double b, double* x );
+
 enum BooleanExpression is_double_zero( double num );
+
+/***
+ * Program main function
+ *
+ * @return  finish code
+ */
 
 int main()
 {
@@ -291,6 +303,35 @@ void SquareTester( void )
           fprintf(out_file, "SquareTester(): ERROR: num_of_roots = %d\n", num_of_roots);
           return;
       }
+
+      enum BooleanExpression test_failure_flag = FALSE_EXP;
+      if (num_of_roots != test_coeffs->num_of_roots)
+      {
+        test_failure_flag = TRUE_EXP;
+      }
+      else /* if (num_of_roots == test_coeffs->num_of_roots) */
+      {
+        switch (num_of_roots) {
+          case NO_ROOTS:
+          case INF_ROOTS:
+            break;
+
+          case ONE_ROOT:
+            if (test_coeffs->x1 != x1)
+              test_failure_flag = TRUE_EXP;
+            break;
+
+          case TWO_ROOTS:
+            if ((test_coeffs->x1 != x1 && test_coeffs->x2 != x2) && (test_coeffs->x1 != x2 && test_coeffs->x2 != x1))
+              test_failure_flag = FALSE_EXP;
+            break;
+
+          default:
+            /* unreachable code */
+            return;
+        }
+      }
+      fprintf(out_file, "Test : %s\n", test_failure_flag ? "Failed" : "OK");
     }
   }
 

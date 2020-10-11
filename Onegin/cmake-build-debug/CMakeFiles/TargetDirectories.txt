@@ -1,0 +1,3 @@
+/home/zafar/Desktop/ttrack/Onegin/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/zafar/Desktop/ttrack/Onegin/cmake-build-debug/CMakeFiles/Onegin.dir
+/home/zafar/Desktop/ttrack/Onegin/cmake-build-debug/CMakeFiles/edit_cache.dir

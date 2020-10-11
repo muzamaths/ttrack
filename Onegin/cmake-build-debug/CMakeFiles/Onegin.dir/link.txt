@@ -1,0 +1,1 @@
+/usr/bin/cc -g   CMakeFiles/Onegin.dir/main.c.o  -o Onegin 

@@ -10,15 +10,22 @@
 enum RootsNumber
 {
   INF_ROOTS = -1,
-  NO_ROOTS,
-  ONE_ROOT,
-  TWO_ROOTS
+  NO_ROOTS  = 0,
+  ONE_ROOT  = 1,
+  TWO_ROOTS = 2
 };
 
 enum BooleanExpression
 {
   FALSE_EXP,
   TRUE_EXP
+};
+
+struct SquareTestType
+{
+  double a, b, c;
+  enum RootsNumber num_of_roots;
+  double x1, x2;
 };
 
 enum RootsNumber SolveSquare( double a, double b, double c, double* x1, double* x2 );
@@ -35,20 +42,20 @@ int main()
   double a = 0, b = 0, c = 0;
   scanf ("%lg %lg %lg", &a, &b, &c);
   double x1 = 0, x2 = 0;
-  int NumOfRoots = SolveSquare(a, b, c, &x1, &x2);
+  enum RootsNumber NumOfRoots = SolveSquare(a, b, c, &x1, &x2);
 
 
   switch (NumOfRoots)
   {
-    case 0:
+    case NO_ROOTS:
       printf("No roots\n");
       break;
 
-    case 1:
+    case ONE_ROOT:
       printf("X = %lg\n", x1);
       break;
 
-    case 2:
+    case TWO_ROOTS:
       printf("X1 = %lg, X2 = %lg\n", x1, x2);
       break;
 
@@ -95,17 +102,20 @@ enum RootsNumber SolveSquare( double a, double b, double c, double* x1, double* 
   assert (x2 != NULL);
   assert (x1 != x2);
 
+  enum RootsNumber num_of_roots;
+
   if (is_double_zero(a))
   {
     /* Linear equation */
     if (is_double_zero(b))
     {
-      return (is_double_zero(c)) ? INF_ROOTS : 0;
+      return (is_double_zero(c)) ? INF_ROOTS : NO_ROOTS;
     }
     else /* if (b != 0) */
     {
-      *x1 = -c / b;
-      return ONE_ROOT;
+      SolveLinear(b, c, x1);
+      *x2 = *x1;
+      num_of_roots = ONE_ROOT;
     }
   }
   else /* if (a != 0) */
@@ -119,18 +129,23 @@ enum RootsNumber SolveSquare( double a, double b, double c, double* x1, double* 
     else if (is_double_zero(D))
     {
       *x1 = *x2 = -b / (2 * a);
-      return ONE_ROOT;
+      num_of_roots = ONE_ROOT;
     }
-    else
+    else /* if (D > 0) */
     {
       double sqrt_D = sqrt(D);
 
       *x1 = (-b - sqrt_D) / (2 * a);
       *x2 = (-b + sqrt_D) / (2 * a);
-
-      return TWO_ROOTS;
+      num_of_roots = TWO_ROOTS;
     }
   }
+
+  /* Type inaccuracy and -0.0 correction */
+  *x1 = (fabs(*x1) < TYPE_INACCURACY) ? 0.0 : *x1;
+  *x2 = (fabs(*x2) < TYPE_INACCURACY) ? 0.0 : *x2;
+
+  return num_of_roots;
 }
 
 //‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐
@@ -155,7 +170,7 @@ void SquareTester( void )
   }
 
   unsigned long int num_of_tests;
-  char line_buffer[1100];
+  char line_buffer[2048];
   char *curr_pos_in_buffer = line_buffer;
 
   errno = 0;
@@ -175,22 +190,48 @@ void SquareTester( void )
     fprintf(out_file, "Number of tests : %lu \n", num_of_tests);
   }
 
-  double** test_coeffs = (double **)malloc(sizeof(double *) * num_of_tests);
-  for (int i = 0; i < num_of_tests; i++)
+  struct SquareTestType* test_coeffs = (struct SquareTestType *)calloc(num_of_tests, sizeof(struct SquareTestType));
+  if (test_coeffs == NULL)
   {
-    test_coeffs[i] = (double *)malloc(sizeof(double) * 3);
+    fprintf(out_file, "Memory allocation failure\n");
+    fclose(in_file);
+    fclose(out_file);
+    return;
   }
 
-  /* Reading coefficients from file */
+  /* Reading coefficients, number of roots and solutions from file */
   for (unsigned long int i = 0; i < num_of_tests; i++)
   {
     errno = 0;
     curr_pos_in_buffer = line_buffer;
     fgets(line_buffer, sizeof(line_buffer), in_file);
-    for (int j = 0; j < 3; j++)
+    test_coeffs->a = strtod(curr_pos_in_buffer, &curr_pos_in_buffer);
+    test_coeffs->b = strtod(curr_pos_in_buffer, &curr_pos_in_buffer);
+    test_coeffs->c = strtod(curr_pos_in_buffer, &curr_pos_in_buffer);
+    test_coeffs->num_of_roots = (enum RootsNumber)strtol(curr_pos_in_buffer, &curr_pos_in_buffer, 10);
+
+    switch(test_coeffs->num_of_roots)
     {
-      test_coeffs[i][j] = strtod(curr_pos_in_buffer, &curr_pos_in_buffer);
+      case INF_ROOTS:
+      case NO_ROOTS:
+        break;
+
+      case ONE_ROOT:
+        test_coeffs->x1 = strtod(curr_pos_in_buffer, &curr_pos_in_buffer);
+        test_coeffs->x2 = test_coeffs->x1;
+        break;
+
+      case TWO_ROOTS:
+        test_coeffs->x1 = strtod(curr_pos_in_buffer, &curr_pos_in_buffer);
+        test_coeffs->x2 = strtod(curr_pos_in_buffer, &curr_pos_in_buffer);
+        break;
+
+      default:
+        fprintf(out_file, "Something is wrong with the testing file."
+                          "There is wrong number of roots on the line number %lu\n", i + 2);
+        return;
     }
+
     if (errno == ERANGE)
     {
       fprintf(out_file, "%lu : could not read coefficients for this test, "
@@ -198,26 +239,52 @@ void SquareTester( void )
     }
     else
     {
-      int num_of_roots;
+      enum RootsNumber num_of_roots;
       double x1 = NAN, x2 = NAN;
 
-      num_of_roots = SolveSquare(test_coeffs[i][0], test_coeffs[i][1], test_coeffs[i][2], &x1, &x2);
+      num_of_roots = SolveSquare(test_coeffs->a, test_coeffs->b, test_coeffs->c, &x1, &x2);
 
       fprintf(out_file, "%lu\n",  i + 1);
-      fprintf(out_file, "Test coeffincients: a = %lg, b = %lg, c = %lg\n", test_coeffs[i][0], test_coeffs[i][1], test_coeffs[i][2]);
-      fprintf(out_file, "Number of roots: %i\n", num_of_roots);
-      fprintf(out_file, "Test solution: ");
-      switch (num_of_roots)
+      fprintf(out_file, "Test coeffincients: a = %lg, b = %lg, c = %lg\n", test_coeffs->a, test_coeffs->b, test_coeffs->c);
+      fprintf(out_file, "Real number of roots: %i\n", test_coeffs->num_of_roots);
+      fprintf(out_file, "Test number of roots: %i\n", num_of_roots);
+
+      fprintf(out_file, "Real solution: ");
+      switch (test_coeffs->num_of_roots)
       {
-        case 0:
+        case NO_ROOTS:
           fprintf(out_file, "No roots\n");
           break;
 
-        case 1:
+        case ONE_ROOT:
+          fprintf(out_file, "X = %lg\n", test_coeffs->x1);
+          break;
+
+        case TWO_ROOTS:
+          fprintf(out_file, "X1 = %lg, X2 = %lg\n", test_coeffs->x1, test_coeffs->x2);
+          break;
+
+        case INF_ROOTS:
+          fprintf(out_file, "Any number\n");
+          break;
+
+        default:
+          fprintf(out_file, "SquareTester() : ERROR: test_coeffs->num_of_roots = %d\n", test_coeffs->num_of_roots);
+          return;
+      }
+
+      fprintf(out_file, "Test solution: ");
+      switch (num_of_roots)
+      {
+        case NO_ROOTS:
+          fprintf(out_file, "No roots\n");
+          break;
+
+        case ONE_ROOT:
           fprintf(out_file, "X = %lg\n", x1);
           break;
 
-        case 2:
+        case TWO_ROOTS:
           fprintf(out_file, "X1 = %lg, X2 = %lg\n", x1, x2);
           break;
 
@@ -226,7 +293,7 @@ void SquareTester( void )
           break;
 
         default:
-          fprintf(out_file, "main(): ERROR: num_of_roots = %d\n", num_of_roots);
+          fprintf(out_file, "SquareTester(): ERROR: num_of_roots = %d\n", num_of_roots);
           return;
       }
     }
@@ -234,10 +301,7 @@ void SquareTester( void )
 
   fclose(in_file);
   fclose(out_file);
-  for (int i = 0; i < num_of_tests; i++)
-  {
-    free(test_coeffs[i]);
-  }
+
   free(test_coeffs);
 }
 
@@ -252,7 +316,7 @@ void SquareTester( void )
 //! @note In case of infinite number of roots,
 //! returns INF_ROOTS
 //‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐
-int SolveLinear( double a, double b, double* x )
+enum RootsNumber SolveLinear( double a, double b, double* x )
 {
   assert(isfinite(a));
   assert(isfinite(b));
@@ -265,7 +329,8 @@ int SolveLinear( double a, double b, double* x )
   else /* if (a != 0) */
   {
     assert(isfinite(-b / a));
-    *x = -b / a;
+    *x = (fabs(-b / a) < TYPE_INACCURACY) ? 0.0 : (-b / a);
+
     return ONE_ROOT;
   }
 }

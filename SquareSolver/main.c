@@ -107,16 +107,8 @@ enum RootsNumber SolveSquare( double a, double b, double c, double* x1, double* 
   if (is_double_zero(a))
   {
     /* Linear equation */
-    if (is_double_zero(b))
-    {
-      return (is_double_zero(c)) ? INF_ROOTS : NO_ROOTS;
-    }
-    else /* if (b != 0) */
-    {
-      SolveLinear(b, c, x1);
-      *x2 = *x1;
-      num_of_roots = ONE_ROOT;
-    }
+    num_of_roots = SolveLinear(b, c, x1);
+    *x2 = *x1;
   }
   else /* if (a != 0) */
   {
@@ -124,7 +116,7 @@ enum RootsNumber SolveSquare( double a, double b, double c, double* x1, double* 
 
     if (D < 0)
     {
-      return NO_ROOTS;
+      num_of_roots = NO_ROOTS;
     }
     else if (is_double_zero(D))
     {
@@ -142,8 +134,11 @@ enum RootsNumber SolveSquare( double a, double b, double c, double* x1, double* 
   }
 
   /* Type inaccuracy and -0.0 correction */
-  *x1 = (fabs(*x1) < TYPE_INACCURACY) ? 0.0 : *x1;
-  *x2 = (fabs(*x2) < TYPE_INACCURACY) ? 0.0 : *x2;
+  if (num_of_roots > 0)
+  {
+    *x1 = (fabs(*x1) < TYPE_INACCURACY) ? 0.0 : *x1;
+    *x2 = (fabs(*x2) < TYPE_INACCURACY) ? 0.0 : *x2;
+  }
 
   return num_of_roots;
 }
@@ -316,7 +311,7 @@ void SquareTester( void )
 //! @note In case of infinite number of roots,
 //! returns INF_ROOTS
 //‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐
-enum RootsNumber SolveLinear( double a, double b, double* x )
+enum RootsNumber SolveLinear( double a, double b, double *x )
 {
   assert(isfinite(a));
   assert(isfinite(b));
@@ -324,6 +319,7 @@ enum RootsNumber SolveLinear( double a, double b, double* x )
 
   if (a == 0)
   {
+    *x = NAN;
     return (b == 0) ? INF_ROOTS : NO_ROOTS;
   }
   else /* if (a != 0) */

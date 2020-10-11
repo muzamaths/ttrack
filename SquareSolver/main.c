@@ -5,10 +5,26 @@
 #include <float.h>
 #include <errno.h>
 
-#define SS_INF_ROOTS (-1)   // Infinite number of roots constant
+#define TYPE_INACCURACY (1e-14)
 
-int SolveSquare( double a, double b, double c, double* x1, double* x2);
+enum RootsNumber
+{
+  INF_ROOTS = -1,
+  NO_ROOTS,
+  ONE_ROOT,
+  TWO_ROOTS
+};
+
+enum BooleanExpression
+{
+  FALSE_EXP,
+  TRUE_EXP
+};
+
+enum RootsNumber SolveSquare( double a, double b, double c, double* x1, double* x2 );
 void SquareTester( void );
+enum RootsNumber SolveLinear( double a, double b, double* x );
+enum BooleanExpression is_double_zero( double num );
 
 int main()
 {
@@ -36,7 +52,7 @@ int main()
       printf("X1 = %lg, X2 = %lg\n", x1, x2);
       break;
 
-    case SS_INF_ROOTS:
+    case INF_ROOTS:
       printf("Any number");
       break;
 
@@ -52,7 +68,6 @@ int main()
 
   return 0;
 }
-
 //‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐
 //! Solves a square equation ax2 + bx + c = 0
 //!
@@ -65,10 +80,14 @@ int main()
 //! @return Number of roots
 //!
 //! @note In case of infinite number of roots,
-//! returns SS_INF_ROOTS
+//! returns INF_ROOTS
 //‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐
-int SolveSquare( double a, double b, double c, double* x1, double* x2 )
+enum RootsNumber SolveSquare( double a, double b, double c, double* x1, double* x2 )
 {
+  assert(isfinite(a));
+  assert(isfinite(b));
+  assert(isfinite(c));
+
   assert(fabs(b) < sqrt(DBL_MAX));
   assert(fabs(4 * a * c) < sqrt(DBL_MAX));
 
@@ -76,17 +95,17 @@ int SolveSquare( double a, double b, double c, double* x1, double* x2 )
   assert (x2 != NULL);
   assert (x1 != x2);
 
-  if (a == 0)
+  if (is_double_zero(a))
   {
     /* Linear equation */
-    if (b == 0)
+    if (is_double_zero(b))
     {
-      return (c == 0) ? SS_INF_ROOTS : 0;
+      return (is_double_zero(c)) ? INF_ROOTS : 0;
     }
     else /* if (b != 0) */
     {
       *x1 = -c / b;
-      return 1;
+      return ONE_ROOT;
     }
   }
   else /* if (a != 0) */
@@ -95,12 +114,12 @@ int SolveSquare( double a, double b, double c, double* x1, double* x2 )
 
     if (D < 0)
     {
-      return 0;
+      return NO_ROOTS;
     }
-    else if (D == 0)
+    else if (is_double_zero(D))
     {
       *x1 = *x2 = -b / (2 * a);
-      return 1;
+      return ONE_ROOT;
     }
     else
     {
@@ -109,7 +128,7 @@ int SolveSquare( double a, double b, double c, double* x1, double* x2 )
       *x1 = (-b - sqrt_D) / (2 * a);
       *x2 = (-b + sqrt_D) / (2 * a);
 
-      return 2;
+      return TWO_ROOTS;
     }
   }
 }
@@ -202,7 +221,7 @@ void SquareTester( void )
           fprintf(out_file, "X1 = %lg, X2 = %lg\n", x1, x2);
           break;
 
-        case SS_INF_ROOTS:
+        case INF_ROOTS:
           fprintf(out_file, "Any number\n");
           break;
 
@@ -220,4 +239,51 @@ void SquareTester( void )
     free(test_coeffs[i]);
   }
   free(test_coeffs);
+}
+
+//‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐
+//! Solves linear equation ax + b = 0
+//!
+//! @param [in] a   a-coefficient
+//! @param [in] b   b-coefficient
+//!
+//! @param [out] Number of roots
+//!
+//! @note In case of infinite number of roots,
+//! returns INF_ROOTS
+//‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐
+int SolveLinear( double a, double b, double* x )
+{
+  assert(isfinite(a));
+  assert(isfinite(b));
+  assert(x != NULL);
+
+  if (a == 0)
+  {
+    return (b == 0) ? INF_ROOTS : NO_ROOTS;
+  }
+  else /* if (a != 0) */
+  {
+    assert(isfinite(-b / a));
+    *x = -b / a;
+    return ONE_ROOT;
+  }
+}
+
+//‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐
+//! Checks if number is zero by comparing it with small number
+//!
+//! @param [in] a   a-coefficient
+//! @param [in] b   b-coefficient
+//!
+//! @param [out] Number of roots
+//!
+//! @note In case of infinite number of roots,
+//! returns INF_ROOTS
+//‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐
+enum BooleanExpression is_double_zero( double num )
+{
+  assert(isfinite(num));
+
+  return (fabs(num) < TYPE_INACCURACY) ? TRUE_EXP : FALSE_EXP;
 }

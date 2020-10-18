@@ -1,56 +1,12 @@
-#include <stdio.h>
-#include <stdlib.h>
-
-int input_to_given_buffer(char *buffer);
-char * input_to_local_static_buffer(void);
-char * input_to_dynamic_buffer(void);
+#include "text_functions.h"
 
 int main()
 {
+  //text_functions_tester();
+  const char *in_file_name = "romeo-and-juliet_Shakespeare.txt",
+             *out_file_name = "romeo-and-juliet_Shakespeare_out.txt";
+
+  sort_text(in_file_name, out_file_name);
+
   return 0;
-}
-
-//‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐
-//! Gets pointer to buffer and inputs string there
-//!
-//! @param [in]  char *buffer    string buffer
-//!
-//! @param [out] int             number of roots
-//!
-//! @note In case of infinite number of roots,
-//! returns SS_INF_ROOTS
-//‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐
-int input_to_given_buffer(char *buffer)
-{
-  return 0;
-}
-
-//‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐
-//! Gets pointer to buffer and inputs string there
-//!
-//! @param [in] buffer    string buffer
-//!
-//! @return Number of roots
-//!
-//! @note In case of infinite number of roots,
-//! returns SS_INF_ROOTS
-//‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐
-char * input_to_local_static_buffer(void)
-{
-  return NULL;
-}
-
-//‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐
-//! Gets pointer to buffer and inputs string there
-//!
-//! @param [in] buffer    string buffer
-//!
-//! @return Number of roots
-//!
-//! @note In case of infinite number of roots,
-//! returns SS_INF_ROOTS
-//‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐‐
-char * input_to_dynamic_buffer(void)
-{
-  return NULL;
 }

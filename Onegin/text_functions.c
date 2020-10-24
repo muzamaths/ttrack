@@ -24,16 +24,7 @@ enum ERR_CODE read_text_from_file(const char *in_file_name, char *buffer, size_t
 
   if (fread(buffer, sizeof(char), text_length, in_file) < text_length)
   {
-    if (ferror(in_file))
-    {
-      fclose(in_file);
-      return ERR_FILE_OPERATE;
-    }
-    if (feof(in_file))
-    {
-      fclose(in_file);
-      return ERR_UNEXP_EOF;
-    }
+    SHORT_READ_CHECK(in_file);
   }
 
   fclose(in_file);
@@ -78,16 +69,7 @@ enum ERR_CODE write_text_to_file(const char *out_file_name, const char *buffer,
 
   if (fwrite(buffer, sizeof(char), text_length, out_file) < text_length)
   {
-    if (ferror(out_file))
-    {
-      fclose(out_file);
-      return ERR_FILE_OPERATE;
-    }
-    if (feof(out_file))
-    {
-      fclose(out_file);
-      return ERR_UNEXP_EOF;
-    }
+    SHORT_READ_CHECK(out_file);
   }
 
   fclose(out_file);
@@ -98,7 +80,7 @@ enum ERR_CODE write_text_to_file(const char *out_file_name, const char *buffer,
  * Writes text string by string from the array of pointers to the text strings' beginnings.
  *
  * @param const char *out_file_name - output file name
- * @param char **index - buffer to read text from
+ * @param my_string - array of strings
  * @param size_t strings_number - expected number of strings to write
  * @param enum BOOL_TYPE to_append - append flag:
  *    - if TRUE - function writes text to the end of existing file or creates new one;
@@ -106,7 +88,7 @@ enum ERR_CODE write_text_to_file(const char *out_file_name, const char *buffer,
  *
  * @return ERR_CODE - error code
  */
-enum ERR_CODE write_text_by_strings(const char *out_file_name, char **index,
+enum ERR_CODE write_text_by_strings(const char *out_file_name, my_string *index,
                                     size_t strings_number, enum BOOL_TYPE to_append)
 {
   if (out_file_name == NULL || index == NULL)
@@ -116,7 +98,7 @@ enum ERR_CODE write_text_by_strings(const char *out_file_name, char **index,
 
   for (int i = 0; i < strings_number; i++)
   {
-    if (index[i] == NULL)
+    if (index[i].head_ptr == NULL)
     {
       return ERR_NULL_PARAM;
     }
@@ -140,13 +122,12 @@ enum ERR_CODE write_text_by_strings(const char *out_file_name, char **index,
 
   for (int i = 0; i < strings_number; i++)
   {
-    fwrite(index[i], sizeof(char), strchr(index[i], '\n') - index[i] + 1, out_file);
+    fwrite(index[i].head_ptr, sizeof(char), index[i].size, out_file);
   }
 
   fclose(out_file);
   return SUCCESS;
 }
-
 
 /***
  * Checks if symbol is ASCII letter: 'a'-'z' or 'A'-'Z'
@@ -162,8 +143,7 @@ enum BOOL_TYPE is_letter(const char *sym)
 
   if ((*sym >= 'a' && *sym <= 'z') || (*sym >= 'A' && *sym <= 'Z'))
     return TRUE;
-  else
-    return FALSE;
+  return FALSE;
 }
 
 /***
@@ -212,29 +192,26 @@ enum CMP_TYPE letter_cmp(const char *sym1, const char *sym2)
   {
     return EQUAL;
   }
-  else
-  {
-    return LESS;
-  }
+  return LESS;
 }
 
 /***
  * Function compares two strings ignoring punctuation.
- * If one string is identical to the other till its end, but the other one is longer,
+ * If one string is identical to the other till its end, but the second one is longer,
  * then the first one is considered to be LESS.
  *
- * @param const char *str1 - first comparing string
- * @param const char *str2 - second comparing string
+ * @param const my_string *str1 - first comparing string
+ * @param const my_string *str2 - second comparing string
  *
  * @return CMP_TYPE - comparision result
  */
-enum CMP_TYPE string_cmp(const char *str1, const char *str2)
+enum CMP_TYPE string_cmp(const my_string *str1, const my_string *str2)
 {
-  if (str1 == NULL || str2 == NULL)
+  if (str1 == NULL || str2 == NULL || str1->head_ptr == NULL || str2->head_ptr == NULL)
     return NOT_DEFINED;
 
-  const char *ptr1 = str1,
-             *ptr2 = str2;
+  const char *ptr1 = str1->head_ptr,
+             *ptr2 = str2->head_ptr;
 
   while (*ptr1 != '\n' && *ptr2 != '\n' && *ptr1 != '\0' && *ptr2 != '\0')
   {
@@ -282,10 +259,7 @@ enum CMP_TYPE string_cmp(const char *str1, const char *str2)
   {
     return LESS;
   }
-  else /* if (*ptr1 == '\n' && *ptr2 == '\n') (or other combination with '\0' instead of '\n') */
-  {
-    return EQUAL;
-  }
+  return EQUAL;
 }
 
 /***
@@ -298,52 +272,134 @@ enum CMP_TYPE string_cmp(const char *str1, const char *str2)
  */
 int string_comparator(const void *str1, const void *str2)
 {
-  return (int)(string_cmp(*(char **)str1, *(char **)str2));
+  return (int)(string_cmp((my_string *)str1, (my_string *)str2));
 }
 
 /***
- * Splits text to strings and saves the pointers to the beginning of this strings to the 'index' array.
+ * Function compares two strings in reverse order ignoring punctuation.
+ * If one string is identical to the other till its beginning, but the second one is longer,
+ * then the first one is considered to be LESS.
+ *
+ * @param const my_string *str1 - first comparing string
+ * @param const my_string *str2 - second comparing string
+ *
+ * @return CMP_TYPE - comparision result
+ */
+enum CMP_TYPE string_reverse_cmp(const my_string *str1, const my_string *str2)
+{
+  if (str1 == NULL || str2 == NULL || str1->head_ptr == NULL || str2->head_ptr == NULL)
+    return NOT_DEFINED;
+
+  const char *ptr1 = str1->head_ptr + str1->size,
+    *ptr2 = str2->head_ptr + str2->size;
+
+  while (ptr1 != str1->head_ptr && ptr2 != str2->head_ptr)
+  {
+    if (!is_letter(ptr1))
+    {
+      ptr1--;
+      if (!is_letter(ptr2))
+      {
+        ptr2--;
+      }
+      continue;
+    }
+    if (!is_letter(ptr2))
+    {
+      ptr2--;
+      if (!is_letter(ptr1))
+      {
+        ptr1--;
+      }
+      continue;
+    }
+
+    enum CMP_TYPE cmp_result = letter_cmp(ptr1, ptr2);
+
+    if (cmp_result == MORE)
+    {
+      return MORE;
+    }
+    else if (cmp_result == LESS)
+    {
+      return LESS;
+    }
+    else /* if (cmp_result == EQUAL) */
+    {
+      ptr1--;
+      ptr2--;
+    }
+  }
+
+  if (ptr1 != str1->head_ptr)
+  {
+    return MORE;
+  }
+  else if (ptr1 != str1->head_ptr)
+  {
+    return LESS;
+  }
+  return EQUAL;
+}
+
+/***
+ * comparator function for two strings to compare them in reverse order
+ *
+ * @param const void *str1 - first string
+ * @param const void *str2 - second string
+ *
+ * @return int - comparision result: -1 - LESS, 0 - EQUAL, 1 - MORE
+ */
+int string_reverse_comparator(const void *str1, const void *str2)
+{
+  return (int)(string_reverse_cmp((my_string *)str1, (my_string *)str2));
+}
+
+/***
+ * Splits text to strings and saves the pointers to the beginning of this strings and their sizes.
  * Memory for dynamic array 'index' is allocated in the function.
  *
  * @param char *buffer - splitting text
- * @param char** *index - pointer on array of pointers to the beginnings of strings
+ * @param my_string **index - pointer on array of pointers to the beginnings of strings
  *
  * @return int - number of strings in text.
  * If error occurred, then -1 is returned.
  */
-int split_text_to_strings(char *buffer, char** *index)
+int split_text_to_strings(char *buffer, my_string **index)
 {
   if (buffer == NULL)
   {
     return -1;
   }
 
-  char *buf_pointer = buffer;
+  char *buf_ptr = buffer;
   int number_of_lines = 0;
   // counting the number of '\n' symbols
-  while (*buf_pointer != '\0')
+  while (*buf_ptr != '\0')
   {
-    buf_pointer = strchr(buf_pointer, '\n');
-    buf_pointer++;
+    buf_ptr = strchr(buf_ptr, '\n');
+    buf_ptr++;
     number_of_lines++;
   }
 
-  *index = (char **)calloc(number_of_lines, sizeof(char *));
+  *index = (my_string *)calloc(number_of_lines, sizeof(my_string));
   if (*index == NULL)
   {
     return -1;
   }
 
-  // initializing 'index' with pointers to the starts of strings
+  // initializing 'index' with pointers to the starts of strings and their sizes
   int curr_str_num = 0;
 
-  buf_pointer = buffer;
+  buf_ptr = buffer;
   do
   {
-    (*index)[curr_str_num++] = buf_pointer;
-    buf_pointer = strchr(buf_pointer, '\n');
-    buf_pointer++;
-  } while (*buf_pointer != '\0');
+    (*index)[curr_str_num].head_ptr = buf_ptr;                                          // set head of string
+    buf_ptr = strchr(buf_ptr, '\n');                                                    // find end of string
+    (*index)[curr_str_num].size = (size_t)(buf_ptr - (*index)[curr_str_num].head_ptr);  // find size of string
+    buf_ptr++;                                                                          // head of next string or '\0'
+    curr_str_num++;
+  } while (*buf_ptr != '\0');
 
   return number_of_lines;
 }
@@ -390,7 +446,7 @@ size_t alloc_for_text( const char *text_file_name, char **buf_ptr )
 enum ERR_CODE sort_text(const char * in_file_name, const char * out_file_name)
 {
   char *buffer;           // main buffer to save text in it
-  char **text;            // array of pointer to the beginnings of strings in text
+  my_string *index;       // array of strings with known size
   int err_code;           // initialized by every function call to obtain the return value
 
 
@@ -423,23 +479,32 @@ enum ERR_CODE sort_text(const char * in_file_name, const char * out_file_name)
   buffer[text_length + 1] = '\0'; //setting terminating '\0' after the last element, which can already be '\0'
 
   /* splitting text to strings */
-  int number_of_lines = split_text_to_strings(buffer, &text);
+  int number_of_lines = split_text_to_strings(buffer, &index);
   if (number_of_lines == -1)
   {
-    if (text == NULL) free(buffer);
+    if (index != NULL)
+    {
+      free(index);
+    }
     free(buffer);
     ADD_LOG_WITH_RETURN(ERR_FUNC_IMPL, 5);
   }
 
   /* sorting text by strings */
-  qsort(text, number_of_lines, sizeof(char **), string_comparator);
+  qsort(index, number_of_lines, sizeof(my_string), string_comparator);
+  write_text_by_strings(out_file_name, index, number_of_lines, FALSE); // sorted
+  write_text_to_file(out_file_name, "========================\n\n\n\n========================", 4, TRUE);
+
+  /* sorting text by string in reverse order */
+  qsort(index, number_of_lines, sizeof(my_string), string_reverse_comparator);
+  write_text_by_strings(out_file_name, index, number_of_lines, TRUE);  // reverse sorted
+  write_text_to_file(out_file_name, "========================\n\n\n\n========================", 4, TRUE);
 
   /* writing sorted text and origin text to out_file */
-  write_text_by_strings(out_file_name, text, number_of_lines, FALSE); // sorted
-  write_text_to_file(out_file_name, buffer, text_length, TRUE);       // origin
+  write_text_to_file(out_file_name, buffer, text_length, TRUE);        // origin
 
   /* free memory */
-  free(text);
+  free(index);
   free(buffer);
 
   return SUCCESS;
@@ -489,7 +554,7 @@ void text_functions_tester( void )
   fprintf(out_file, "===============Split and by string printing functions test section===============\n\n");
   fclose(out_file);
 
-  char **index;
+  my_string *index;
 
   size_t num_of_lines = split_text_to_strings(buffer, &index);
 
@@ -501,7 +566,7 @@ void text_functions_tester( void )
   for (int i = 0; i < num_of_lines; i += 2)
   {
     fprintf(out_file, "%i : ", i + 1);
-    fwrite(index[i], sizeof(char), strchr(index[i], '\n') - index[i] + 1, out_file);
+    fwrite(index[i].head_ptr, sizeof(char), index[i].size, out_file);
   }
   fclose(out_file);
 
@@ -528,7 +593,14 @@ void text_functions_tester( void )
 */
   fclose(out_file);
 
-  qsort(index, num_of_lines, sizeof(char *), string_comparator);
+  // direct order
+  write_text_to_file(out_file_name, "-----direct order-----\n", 1, TRUE);
+  qsort(index, num_of_lines, sizeof(my_string), string_comparator);
+  write_text_by_strings(out_file_name, index, num_of_lines, TRUE);
+
+  // reverse order
+  write_text_to_file(out_file_name, "-----reverse order-----\n", 1, TRUE);
+  qsort(index, num_of_lines, sizeof(my_string), string_reverse_comparator);
   write_text_by_strings(out_file_name, index, num_of_lines, TRUE);
 
   free(buffer);

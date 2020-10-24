@@ -6,6 +6,24 @@
 #include <sys/stat.h>
 #include "error_functions.h"
 
+/***
+ * Checks why the function read less symbols than expected:
+ * because of error or unexpected end of file.
+ *
+ * @param file_ptr - FILE * type pointer to the file.
+ */
+#define SHORT_READ_CHECK(file_ptr) \
+        if (ferror(file_ptr))       \
+        {                           \
+          fclose(file_ptr);         \
+          return ERR_FILE_OPERATE;  \
+        }                           \
+        if (feof(file_ptr))         \
+        {                           \
+          fclose(file_ptr);         \
+          return ERR_UNEXP_EOF;     \
+        }
+
 enum CMP_TYPE
 {
   LESS  = -1,
@@ -19,6 +37,20 @@ enum BOOL_TYPE
   FALSE =  0,
   TRUE  =  1
 };
+
+/***
+ * Basic string structure.
+ *
+ * @attrib char *head_ptr - pointer to the head of the string
+ * @attrib size_t size - size of string
+ */
+struct my_string
+{
+  char *head_ptr;
+  size_t size;
+};
+
+typedef struct my_string my_string;
 
 /***
  * Reads strings from file to given buffer and sets
@@ -50,7 +82,7 @@ enum ERR_CODE write_text_to_file(const char *out_file_name, const char *buffer,
  * Writes text string by string from the array of pointers to the text strings' beginnings.
  *
  * @param const char *out_file_name - output file name
- * @param char **index - buffer to read text from
+ * @param my_string - array of strings
  * @param size_t strings_number - expected number of strings to write
  * @param enum BOOL_TYPE to_append - append flag:
  *    - if TRUE - function writes text to the end of existing file or creates new one;
@@ -58,7 +90,7 @@ enum ERR_CODE write_text_to_file(const char *out_file_name, const char *buffer,
  *
  * @return ERR_CODE - error code
  */
-enum ERR_CODE write_text_by_strings(const char *out_file_name, char **index,
+enum ERR_CODE write_text_by_strings(const char *out_file_name, my_string *index,
                                     size_t strings_number, enum BOOL_TYPE to_append);
 
 /***
@@ -81,14 +113,16 @@ enum BOOL_TYPE is_letter(const char *sym);
 enum CMP_TYPE letter_cmp(const char *sym1, const char *sym2);
 
 /***
- * Function compares two strings ignoring punctuation
+ * Function compares two strings ignoring punctuation.
+ * If one string is identical to the other till its end, but the second one is longer,
+ * then the first one is considered to be LESS.
  *
- * @param const char *str1 - first comparing string
- * @param const char *str2 - second comparing string
+ * @param const my_string *str1 - first comparing string
+ * @param const my_string *str2 - second comparing string
  *
  * @return CMP_TYPE - comparision result
  */
-enum CMP_TYPE string_cmp(const char *str1, const char *str2);
+enum CMP_TYPE string_cmp(const my_string *str1, const my_string *str2);
 
 /***
  * comparator function for two strings
@@ -101,16 +135,38 @@ enum CMP_TYPE string_cmp(const char *str1, const char *str2);
 int string_comparator(const void *str1, const void *str2);
 
 /***
- * Splits text to strings and saves the pointers to the beginning of this strings to the 'index' array.
+ * Function compares two strings in reverse order ignoring punctuation.
+ * If one string is identical to the other till its beginning, but the second one is longer,
+ * then the first one is considered to be LESS.
+ *
+ * @param const my_string *str1 - first comparing string
+ * @param const my_string *str2 - second comparing string
+ *
+ * @return CMP_TYPE - comparision result
+ */
+enum CMP_TYPE string_reverse_cmp(const my_string *str1, const my_string *str2);
+
+/***
+ * comparator function for two strings to compare them in reverse order
+ *
+ * @param const void *str1 - first string
+ * @param const void *str2 - second string
+ *
+ * @return int - comparision result: -1 - LESS, 0 - EQUAL, 1 - MORE
+ */
+int string_reverse_comparator(const void *str1, const void *str2);
+
+/***
+ * Splits text to strings and saves the pointers to the beginning of this strings and their sizes.
  * Memory for dynamic array 'index' is allocated in the function.
  *
  * @param char *buffer - splitting text
- * @param char** *index - pointer on array of pointers to the beginnings of strings
+ * @param my_string **index - pointer on array of pointers to the beginnings of strings
  *
  * @return int - number of strings in text.
  * If error occurred, then -1 is returned.
  */
-int split_text_to_strings(char *buffer, char** *index);
+int split_text_to_strings(char *buffer, my_string **index);
 
 /***
  * Allocates memory to read text from file. Function allocates one more byte in case of missing terminating '\0'.
